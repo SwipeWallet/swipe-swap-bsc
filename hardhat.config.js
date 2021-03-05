@@ -74,13 +74,26 @@ module.exports = {
     eachLine: removeConsoleLog((bre) => bre.network.name !== "hardhat" && bre.network.name !== "localhost"),
   },
   solidity: {
-    version: "0.6.12",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 5000,
+    compilers: [
+      {
+        version: "0.5.0",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 5000,
+          },
+        },
       },
-    },
+      {
+        version: "0.6.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 5000,
+          },
+        },
+      },
+    ],
   },
   spdxLicenseIdentifier: {
     overwrite: false,

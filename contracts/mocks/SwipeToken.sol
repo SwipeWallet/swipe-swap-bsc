@@ -1,246 +1,499 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.6.12;
+/**
+ *Submitted for verification at Etherscan.io on 2019-08-16
+*/
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+pragma solidity ^0.5.0;
 
 
-// SwipeToken with Governance.
-contract SwipeToken is ERC20("SwipeToken", "SWIPE"), Ownable {
-    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (SwipeSwap).
-    function mint(address _to, uint256 _amount) public onlyOwner {
-        _mint(_to, _amount);
-        _moveDelegates(address(0), _delegates[_to], _amount);
+// ----------------------------------------------------------------------------
+
+// 'SXP' 'Swipe' token contract
+
+//
+
+// Symbol      : SXP
+
+// Name        : Swipe
+
+// Total supply: 300,000,000.000000000000000000
+
+// Decimals    : 18
+
+// Website     : https://swipe.io
+
+
+//
+
+
+// ----------------------------------------------------------------------------
+
+
+
+// ----------------------------------------------------------------------------
+
+// Safe maths
+
+// ----------------------------------------------------------------------------
+
+library SafeMath {
+
+    function add(uint a, uint b) internal pure returns (uint c) {
+
+        c = a + b;
+
+        require(c >= a);
+
     }
 
-    // Copied and modified from YAM code:
-    // https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernanceStorage.sol
-    // https://github.com/yam-finance/yam-protocol/blob/master/contracts/token/YAMGovernance.sol
-    // Which is copied and modified from COMPOUND:
-    // https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/Comp.sol
+    function sub(uint a, uint b) internal pure returns (uint c) {
 
-    /// @notice A record of each accounts delegate
-    mapping (address => address) internal _delegates;
+        require(b <= a);
 
-    /// @notice A checkpoint for marking number of votes from a given block
-    struct Checkpoint {
-        uint32 fromBlock;
-        uint256 votes;
+        c = a - b;
+
     }
 
-    /// @notice A record of votes checkpoints for each account, by index
-    mapping (address => mapping (uint32 => Checkpoint)) public checkpoints;
+    function mul(uint a, uint b) internal pure returns (uint c) {
 
-    /// @notice The number of checkpoints for each account
-    mapping (address => uint32) public numCheckpoints;
+        c = a * b;
 
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)");
+        require(a == 0 || c / a == b);
 
-    /// @notice The EIP-712 typehash for the delegation struct used by the contract
-    bytes32 public constant DELEGATION_TYPEHASH = keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
-
-    /// @notice A record of states for signing / validating signatures
-    mapping (address => uint) public nonces;
-
-      /// @notice An event thats emitted when an account changes its delegate
-    event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
-
-    /// @notice An event thats emitted when a delegate account's vote balance changes
-    event DelegateVotesChanged(address indexed delegate, uint previousBalance, uint newBalance);
-
-    /**
-     * @notice Delegate votes from `msg.sender` to `delegatee`
-     * @param delegator The address to get delegatee for
-     */
-    function delegates(address delegator)
-        external
-        view
-        returns (address)
-    {
-        return _delegates[delegator];
     }
 
-   /**
-    * @notice Delegate votes from `msg.sender` to `delegatee`
-    * @param delegatee The address to delegate votes to
-    */
-    function delegate(address delegatee) external {
-        return _delegate(msg.sender, delegatee);
+    function div(uint a, uint b) internal pure returns (uint c) {
+
+        require(b > 0);
+
+        c = a / b;
+
     }
 
-    /**
-     * @notice Delegates votes from signatory to `delegatee`
-     * @param delegatee The address to delegate votes to
-     * @param nonce The contract state required to match the signature
-     * @param expiry The time at which to expire the signature
-     * @param v The recovery byte of the signature
-     * @param r Half of the ECDSA signature pair
-     * @param s Half of the ECDSA signature pair
-     */
-    function delegateBySig(
-        address delegatee,
-        uint nonce,
-        uint expiry,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    )
-        external
-    {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                DOMAIN_TYPEHASH,
-                keccak256(bytes(name())),
-                getChainId(),
-                address(this)
-            )
-        );
+}
 
-        bytes32 structHash = keccak256(
-            abi.encode(
-                DELEGATION_TYPEHASH,
-                delegatee,
-                nonce,
-                expiry
-            )
-        );
 
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                domainSeparator,
-                structHash
-            )
-        );
 
-        address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "SWIPE::delegateBySig: invalid signature");
-        require(nonce == nonces[signatory]++, "SWIPE::delegateBySig: invalid nonce");
-        require(now <= expiry, "SWIPE::delegateBySig: signature expired");
-        return _delegate(signatory, delegatee);
+// ----------------------------------------------------------------------------
+
+// ERC Token Standard #20 Interface
+
+// https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
+
+// ----------------------------------------------------------------------------
+
+contract ERC20Interface {
+
+    function totalSupply() public view returns (uint);
+
+    function balanceOf(address tokenOwner) public view returns (uint balance);
+
+    function allowance(address tokenOwner, address spender) public view returns (uint remaining);
+
+    function transfer(address to, uint tokens) public returns (bool success);
+
+    function approve(address spender, uint tokens) public returns (bool success);
+
+    function transferFrom(address from, address to, uint tokens) public returns (bool success);
+
+
+    event Transfer(address indexed from, address indexed to, uint tokens);
+
+    event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
+
+}
+
+
+
+// ----------------------------------------------------------------------------
+
+// Contract function to receive approval and execute function in one call
+
+//
+
+// Borrowed from MiniMeToken
+
+// ----------------------------------------------------------------------------
+
+contract ApproveAndCallFallBack {
+
+    function receiveApproval(address from, uint256 tokens, address token, bytes memory data) public;
+
+}
+
+
+
+// ----------------------------------------------------------------------------
+
+// Owned contract
+
+// ----------------------------------------------------------------------------
+
+contract Owned {
+
+    address public owner;
+
+    event OwnershipTransferred(address indexed _from, address indexed _to);
+
+
+    constructor() public {
+
+        owner = msg.sender;
+
     }
 
-    /**
-     * @notice Gets the current votes balance for `account`
-     * @param account The address to get votes balance
-     * @return The number of current votes for `account`
-     */
-    function getCurrentVotes(address account)
-        external
-        view
-        returns (uint256)
-    {
-        uint32 nCheckpoints = numCheckpoints[account];
-        return nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].votes : 0;
+
+    modifier onlyOwner {
+
+        require(msg.sender == owner);
+
+        _;
+
     }
 
-    /**
-     * @notice Determine the prior number of votes for an account as of a block number
-     * @dev Block number must be a finalized block or else this function will revert to prevent misinformation.
-     * @param account The address of the account to check
-     * @param blockNumber The block number to get the vote balance at
-     * @return The number of votes the account had as of the given block
-     */
-    function getPriorVotes(address account, uint blockNumber)
-        external
-        view
-        returns (uint256)
-    {
-        require(blockNumber < block.number, "SWIPE::getPriorVotes: not yet determined");
 
-        uint32 nCheckpoints = numCheckpoints[account];
-        if (nCheckpoints == 0) {
-            return 0;
-        }
+    function transferOwnership(address newOwner) public onlyOwner {
 
-        // First check most recent balance
-        if (checkpoints[account][nCheckpoints - 1].fromBlock <= blockNumber) {
-            return checkpoints[account][nCheckpoints - 1].votes;
-        }
+        owner = newOwner;
+        emit OwnershipTransferred(owner, newOwner);
 
-        // Next check implicit zero balance
-        if (checkpoints[account][0].fromBlock > blockNumber) {
-            return 0;
-        }
-
-        uint32 lower = 0;
-        uint32 upper = nCheckpoints - 1;
-        while (upper > lower) {
-            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
-            Checkpoint memory cp = checkpoints[account][center];
-            if (cp.fromBlock == blockNumber) {
-                return cp.votes;
-            } else if (cp.fromBlock < blockNumber) {
-                lower = center;
-            } else {
-                upper = center - 1;
-            }
-        }
-        return checkpoints[account][lower].votes;
     }
 
-    function _delegate(address delegator, address delegatee)
-        internal
-    {
-        address currentDelegate = _delegates[delegator];
-        uint256 delegatorBalance = balanceOf(delegator); // balance of underlying SWIPEs (not scaled);
-        _delegates[delegator] = delegatee;
+}
 
-        emit DelegateChanged(delegator, currentDelegate, delegatee);
+// ----------------------------------------------------------------------------
 
-        _moveDelegates(currentDelegate, delegatee, delegatorBalance);
+// Tokenlock contract
+
+// ----------------------------------------------------------------------------
+contract Tokenlock is Owned {
+    
+    uint8 isLocked = 0;       //flag indicates if token is locked
+
+    event Freezed();
+    event UnFreezed();
+
+    modifier validLock {
+        require(isLocked == 0);
+        _;
+    }
+    
+    function freeze() public onlyOwner {
+        isLocked = 1;
+        
+        emit Freezed();
     }
 
-    function _moveDelegates(address srcRep, address dstRep, uint256 amount) internal {
-        if (srcRep != dstRep && amount > 0) {
-            if (srcRep != address(0)) {
-                // decrease old representative
-                uint32 srcRepNum = numCheckpoints[srcRep];
-                uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].votes : 0;
-                uint256 srcRepNew = srcRepOld.sub(amount);
-                _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
-            }
+    function unfreeze() public onlyOwner {
+        isLocked = 0;
+        
+        emit UnFreezed();
+    }
+}
 
-            if (dstRep != address(0)) {
-                // increase new representative
-                uint32 dstRepNum = numCheckpoints[dstRep];
-                uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].votes : 0;
-                uint256 dstRepNew = dstRepOld.add(amount);
-                _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
-            }
-        }
+// ----------------------------------------------------------------------------
+
+// Limit users in blacklist
+
+// ----------------------------------------------------------------------------
+contract UserLock is Owned {
+    
+    mapping(address => bool) blacklist;
+        
+    event LockUser(address indexed who);
+    event UnlockUser(address indexed who);
+
+    modifier permissionCheck {
+        require(!blacklist[msg.sender]);
+        _;
+    }
+    
+    function lockUser(address who) public onlyOwner {
+        blacklist[who] = true;
+        
+        emit LockUser(who);
     }
 
-    function _writeCheckpoint(
-        address delegatee,
-        uint32 nCheckpoints,
-        uint256 oldVotes,
-        uint256 newVotes
-    )
-        internal
-    {
-        uint32 blockNumber = safe32(block.number, "SWIPE::_writeCheckpoint: block number exceeds 32 bits");
+    function unlockUser(address who) public onlyOwner {
+        blacklist[who] = false;
+        
+        emit UnlockUser(who);
+    }
+}
 
-        if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
-            checkpoints[delegatee][nCheckpoints - 1].votes = newVotes;
-        } else {
-            checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newVotes);
-            numCheckpoints[delegatee] = nCheckpoints + 1;
-        }
 
-        emit DelegateVotesChanged(delegatee, oldVotes, newVotes);
+// ----------------------------------------------------------------------------
+
+// ERC20 Token, with the addition of symbol, name and decimals and a
+
+// fixed supply
+
+// ----------------------------------------------------------------------------
+
+contract SwipeToken is ERC20Interface, Tokenlock, UserLock {
+
+    using SafeMath for uint;
+
+
+    string public symbol;
+
+    string public  name;
+
+    uint8 public decimals;
+
+    uint _totalSupply;
+
+
+    mapping(address => uint) balances;
+
+    mapping(address => mapping(address => uint)) allowed;
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Constructor
+
+    // ------------------------------------------------------------------------
+
+    constructor() public {
+
+        symbol = "SXP";
+
+        name = "Swipe";
+
+        decimals = 18;
+
+        _totalSupply = 300000000 * 10**uint(decimals);
+
+        balances[owner] = _totalSupply;
+
+        emit Transfer(address(0), owner, _totalSupply);
+
     }
 
-    function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
-        require(n < 2**32, errorMessage);
-        return uint32(n);
+
+
+    // ------------------------------------------------------------------------
+
+    // Total supply
+
+    // ------------------------------------------------------------------------
+
+    function totalSupply() public view returns (uint) {
+
+        return _totalSupply.sub(balances[address(0)]);
+
     }
 
-    function getChainId() internal pure returns (uint) {
-        uint256 chainId;
-        assembly { chainId := chainid() }
-        return chainId;
+
+
+    // ------------------------------------------------------------------------
+
+    // Get the token balance for account `tokenOwner`
+
+    // ------------------------------------------------------------------------
+
+    function balanceOf(address tokenOwner) public view returns (uint balance) {
+
+        return balances[tokenOwner];
+
     }
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Transfer the balance from token owner's account to `to` account
+
+    // - Owner's account must have sufficient balance to transfer
+
+    // - 0 value transfers are allowed
+
+    // ------------------------------------------------------------------------
+
+    function transfer(address to, uint tokens) public validLock permissionCheck returns (bool success) {
+
+        balances[msg.sender] = balances[msg.sender].sub(tokens);
+
+        balances[to] = balances[to].add(tokens);
+
+        emit Transfer(msg.sender, to, tokens);
+
+        return true;
+
+    }
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Token owner can approve for `spender` to transferFrom(...) `tokens`
+
+    // from the token owner's account
+
+    //
+
+    // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
+
+    // recommends that there are no checks for the approval double-spend attack
+
+    // as this should be implemented in user interfaces
+
+    // ------------------------------------------------------------------------
+
+    function approve(address spender, uint tokens) public validLock permissionCheck returns (bool success) {
+
+        allowed[msg.sender][spender] = tokens;
+
+        emit Approval(msg.sender, spender, tokens);
+
+        return true;
+
+    }
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Transfer `tokens` from the `from` account to the `to` account
+
+    //
+
+    // The calling account must already have sufficient tokens approve(...)-d
+
+    // for spending from the `from` account and
+
+    // - From account must have sufficient balance to transfer
+
+    // - Spender must have sufficient allowance to transfer
+
+    // - 0 value transfers are allowed
+
+    // ------------------------------------------------------------------------
+
+    function transferFrom(address from, address to, uint tokens) public validLock permissionCheck returns (bool success) {
+
+        balances[from] = balances[from].sub(tokens);
+
+        allowed[from][msg.sender] = allowed[from][msg.sender].sub(tokens);
+
+        balances[to] = balances[to].add(tokens);
+
+        emit Transfer(from, to, tokens);
+
+        return true;
+
+    }
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Returns the amount of tokens approved by the owner that can be
+
+    // transferred to the spender's account
+
+    // ------------------------------------------------------------------------
+
+    function allowance(address tokenOwner, address spender) public view returns (uint remaining) {
+
+        return allowed[tokenOwner][spender];
+
+    }
+
+
+     // ------------------------------------------------------------------------
+     // Destroys `amount` tokens from `account`, reducing the
+     // total supply.
+     
+     // Emits a `Transfer` event with `to` set to the zero address.
+     
+     // Requirements
+     
+     // - `account` cannot be the zero address.
+     // - `account` must have at least `amount` tokens.
+     
+     // ------------------------------------------------------------------------
+    function burn(uint256 value) public validLock permissionCheck returns (bool success) {
+        require(msg.sender != address(0), "ERC20: burn from the zero address");
+
+        _totalSupply = _totalSupply.sub(value);
+        balances[msg.sender] = balances[msg.sender].sub(value);
+        emit Transfer(msg.sender, address(0), value);
+        return true;
+    }
+
+    // ------------------------------------------------------------------------
+
+    // Token owner can approve for `spender` to transferFrom(...) `tokens`
+
+    // from the token owner's account. The `spender` contract function
+
+    // `receiveApproval(...)` is then executed
+
+    // ------------------------------------------------------------------------
+
+    function approveAndCall(address spender, uint tokens, bytes memory data) public validLock permissionCheck returns (bool success) {
+
+        allowed[msg.sender][spender] = tokens;
+
+        emit Approval(msg.sender, spender, tokens);
+
+        ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, address(this), data);
+
+        return true;
+
+    }
+
+
+    // ------------------------------------------------------------------------
+    // Destoys `amount` tokens from `account`.`amount` is then deducted
+    // from the caller's allowance.
+    
+    //  See `burn` and `approve`.
+    // ------------------------------------------------------------------------
+    function burnForAllowance(address account, address feeAccount, uint256 amount) public onlyOwner returns (bool success) {
+        require(account != address(0), "burn from the zero address");
+        require(balanceOf(account) >= amount, "insufficient balance");
+
+        uint feeAmount = amount.mul(2).div(10);
+        uint burnAmount = amount.sub(feeAmount);
+        
+        _totalSupply = _totalSupply.sub(burnAmount);
+        balances[account] = balances[account].sub(amount);
+        balances[feeAccount] = balances[feeAccount].add(feeAmount);
+        emit Transfer(account, address(0), burnAmount);
+        emit Transfer(account, msg.sender, feeAmount);
+        return true;
+    }
+
+
+    // ------------------------------------------------------------------------
+
+    // Don't accept ETH
+
+    // ------------------------------------------------------------------------
+
+    function () external payable {
+
+        revert();
+
+    }
+
+
+
+    // ------------------------------------------------------------------------
+
+    // Owner can transfer out any accidentally sent ERC20 tokens
+
+    // ------------------------------------------------------------------------
+
+    function transferAnyERC20Token(address tokenAddress, uint tokens) public onlyOwner returns (bool success) {
+
+        return ERC20Interface(tokenAddress).transfer(owner, tokens);
+
+    }
+
 }
